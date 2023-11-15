@@ -1,0 +1,7 @@
+dewy,SonicVibe,1/1,Afternoon
+dewy,VinylJunkie,1/1,Afternoon
+dewy,PulseBender,1/1,Afternoon
+dewy,DJ Beatbox,1/1,Afternoon
+bobina,DJ Bob,1/1,Afternoon
+John,GrooveMaster,1/1,Afternoon
+fred,SonicVibe,1/1,Evening
