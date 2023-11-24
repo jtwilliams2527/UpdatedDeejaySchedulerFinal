@@ -1,67 +1,33 @@
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 public class Request {
     private String customerName;
-    private int month;
-    private int day;
-    private String time;
+    private LocalDateTime dateTime;
+    private int eventDuration;
 
-    public Request(String customerName, int month, int day, String time) {
+
+    // Constructor
+    public Request(String customerName, LocalDateTime dateTime, int eventDuration) {
         this.customerName = customerName;
-        this.month = month;
-        this.day = day;
-        this.time = time;
+        this.dateTime = dateTime;
+        this.eventDuration = eventDuration;
     }
 
+    // Getter methods
     public String getCustomerName() {
         return customerName;
     }
 
-    public void setCustomerName(String customerName) {
-        this.customerName = customerName;
+    public LocalDateTime getDateTime() {
+        return dateTime;
     }
-
-    public int getMonth() {
-        return month;
-    }
-
-    public void setMonth(int month) {
-        this.month = month;
-    }
-
-    public int getDay() {
-        return day;
-    }
-
-    public void setDay(int day) {
-        this.day = day;
-    }
-
-    public String getDateStr(){
-        return month + "/" + day;
-    }
-
-    public String getTime() {
-        return time;
-    }
-
-    public void setTime(String time) {
-        this.time = time;
-    }
-
-    public String getTimeSlot() {
-        return time;
-    }
-
-    @Override
-    public String toString() {
-        return "Request{" +
-                "customerName='" + customerName + '\'' +
-                ", month=" + month +
-                ", day=" + day +
-                ", time='" + time + '\'' +
-                '}';
+    public int getEventDuration() {
+        return eventDuration;
     }
 
     public String toStringForFile() {
-        return customerName + "," + month + "/" + day + "," + time;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy HH:mm");
+        return customerName + "," + dateTime.format(formatter);
     }
 }
