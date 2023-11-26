@@ -23,7 +23,7 @@ public class DJScheduler {
         bookingsList = readBookingsFile(BOOKING_FILE);
         waitingList = readWaitingListFile(WAITING_LIST_FILE);
 
-        
+
 
         Scanner scanner = new Scanner(System.in);
         boolean running = true;
@@ -84,24 +84,29 @@ public class DJScheduler {
 
       // Get the event duration from the user
       System.out.print("Enter event duration (in hours, between 2 and 4): ");
-      eventDuration = scanner.nextInt();
+      int eventDurationInput = scanner.nextInt();
       scanner.nextLine(); // Consume newline
 
-
       // Check if the selected DJ is available for the given duration
-      String dj = chooseAvailableDj(dateTime, eventDuration);
+      String dj = chooseAvailableDj(dateTime, eventDurationInput);
       if (dj != null) {
-          bookingsList.add(new Booking(dj, dateTime, customerName, eventDuration));
+          bookingsList.add(new Booking(dj, dateTime, customerName, eventDurationInput));
           System.out.println("Booking successful for " + dj);
-          fulfillWaitingListRequest(dj, eventDuration);
-
+          fulfillWaitingListRequest(dj, eventDurationInput);
           saveBookingsFile(BOOKING_FILE, bookingsList);
       } else {
           System.out.println("No available DJs for the specified duration. Adding to the waiting list.");
-          waitingList.offer(new Request(customerName, dateTime, eventDuration));
+
+          // Instead of adding to the bookingsList directly, add to waitingList
+          waitingList.offer(new Request(customerName, dateTime, eventDurationInput));
           saveWaitingListFile(WAITING_LIST_FILE, waitingList);
       }
   }
+
+
+
+
+
 
 
 
@@ -121,21 +126,26 @@ public class DJScheduler {
 
       // Count the number of overlapping bookings for each DJ
       for (Booking booking : bookingsList) {
+          LocalDateTime bookingEnd = booking.getDateTime().plusHours(booking.getEventDuration());
+
           if (booking.getDateTime().isBefore(dateTime.plusHours(eventDuration)) &&
-                  booking.getDateTime().plusHours(booking.getEventDuration()).isAfter(dateTime)) {
+                  bookingEnd.isAfter(dateTime)) {
               String dj = booking.getDj();
               djBookingCounts.put(dj, djBookingCounts.get(dj) + 1);
           }
       }
 
-      // Find the DJ with the least number of bookings
+      // Find the DJ with the least number of bookings who is available
       String chosenDj = null;
-      int minBookings = Integer.MAX_VALUE;
+      int minBookings = -1;
 
       for (Map.Entry<String, Integer> entry : djBookingCounts.entrySet()) {
-          if (entry.getValue() < minBookings && isDjAvailable(entry.getKey(), dateTime, eventDuration)) {
-              chosenDj = entry.getKey();
-              minBookings = entry.getValue();
+          // Check if the DJ is available for the requested duration
+          if (isDjAvailable(entry.getKey(), dateTime, eventDuration)) {
+              if (minBookings == -1 || entry.getValue() < minBookings) {
+                  chosenDj = entry.getKey();
+                  minBookings = entry.getValue();
+              }
           }
       }
 
@@ -147,27 +157,47 @@ public class DJScheduler {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   private static void fulfillCancelledBookingsRequest(ArrayList<Booking> cancelledBookings, int eventDuration) {
       for (Booking booking : cancelledBookings) {
+          boolean isAvailable = false;
+
           if (djsList.isEmpty()) {
-              System.out.println("No available DJs. Adding to the front of waiting list queue.");
+              System.out.println("No available DJs. Adding to the front of the waiting list queue.");
               waitingList.offer(new Request(booking.getCustomerName(), booking.getDateTime(), eventDuration));
-          }
-          for (String dj : djsList) {
-              boolean isAvailable = isDjAvailable(dj, booking.getDateTime(), eventDuration);
-              if (isAvailable) {
-                  bookingsList.add(new Booking(dj, booking.getDateTime(), booking.getCustomerName(), eventDuration));
-                  System.out.println("Booking successful for DJ " + dj + " from the waiting list.");
-              } else {
-                  System.out.println("No available DJs for the waiting list request. Adding to the front of waiting list queue.");
-                  waitingList.offer(new Request(booking.getCustomerName(), booking.getDateTime(), eventDuration));
+          } else {
+              for (String dj : djsList) {
+                  isAvailable = isDjAvailable(dj, booking.getDateTime(), eventDuration);
+                  if (isAvailable) {
+                      bookingsList.add(new Booking(dj, booking.getDateTime(), booking.getCustomerName(), eventDuration));
+                      System.out.println("Booking successful for DJ " + dj + " from the waiting list.");
+                      break; // Exit the loop once a DJ is found
+                  }
               }
           }
+
+          if (!isAvailable) {
+              System.out.println("No available DJs for the waiting list request. Adding to the front of the waiting list queue.");
+              waitingList.offer(new Request(booking.getCustomerName(), booking.getDateTime(), eventDuration));
+          }
       }
+
       waitingList = new LinkedList<>(rotateWaitingList(cancelledBookings.size()));
       saveBookingsFile(BOOKING_FILE, bookingsList);
       saveWaitingListFile(WAITING_LIST_FILE, waitingList);
   }
+
 
 
 
@@ -198,10 +228,12 @@ public class DJScheduler {
 
 
 
+
   private static boolean isDjAvailable(String dj, LocalDateTime dateTime, int eventDuration) {
-      // Check if the DJ is available for the specified duration
       for (Booking booking : bookingsList) {
-          if (booking.getDj().equals(dj) && booking.getDateTime().isBefore(dateTime.plusHours(eventDuration)) && booking.getDateTime().plusHours(booking.getEventDuration()).isAfter(dateTime)) {
+          if (booking.getDj().equals(dj) &&
+              !dateTime.plusHours(eventDuration).isBefore(booking.getDateTime()) &&
+              !booking.getDateTime().plusHours(booking.getEventDuration()).isBefore(dateTime)) {
               return false; // The DJ is not available for the requested duration
           }
       }
@@ -211,7 +243,8 @@ public class DJScheduler {
 
 
 
-  
+
+
 
 
 
@@ -266,7 +299,7 @@ public class DJScheduler {
     }
 
 
-  
+
 
     private static void signupDeejay(Scanner scanner, int eventDuration) {
         System.out.print("Enter the name of the new deejay: ");
@@ -319,7 +352,7 @@ public class DJScheduler {
         System.out.println("Bookings for Deejay " + deejay + ":");
         for (Booking booking : bookingsList) {
             if (booking.getDj().equals(deejay)) {
-                System.out.println(booking);
+                System.out.println(booking.toStringForFile());
             }
         }
     }
@@ -332,7 +365,7 @@ public class DJScheduler {
       System.out.println("Bookings for Date " + date + ":");
       for (Booking booking : bookingsList) {
           if (booking.getDateTime().format(formatter).equals(date)) {
-              System.out.println(booking);
+              System.out.println(booking.toStringForFile());
           }
       }
   }
@@ -355,17 +388,13 @@ public class DJScheduler {
           while (scanner.hasNextLine()) {
               String line = scanner.nextLine();
               String[] parts = line.split(",");
-              if (parts.length == 5) {
+              if (parts.length == 3) {
                   String customerName = parts[0];
                   String dj = parts[1];
-                  String[] date = parts[2].split("/");
-                  int month = Integer.parseInt(date[0]);
-                  int day = Integer.parseInt(date[1]);
-                  String time = parts[3];
-                  int eventHour = Integer.parseInt(time);
-                  bookingsList.add(new Booking(parts[1], LocalDateTime.of(2023, month, day, eventHour, 0), parts[0], eventHour));
-  
-
+                  String dateTimeStr = parts[2];
+                  DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy HH:mm");
+                  LocalDateTime dateTime = LocalDateTime.parse(dateTimeStr, formatter);
+                  bookingsList.add(new Booking(dj, dateTime, customerName, eventDuration));
               }
           }
       } catch (IOException e) {
@@ -374,26 +403,34 @@ public class DJScheduler {
       return bookingsList;
   }
 
-  private static Queue<Request> readWaitingListFile(String filename) {
-      Queue<Request> waitingList = new LinkedList<>();
-      try (Scanner scanner = new Scanner(new File(filename))) {
-          while (scanner.hasNextLine()) {
-              String line = scanner.nextLine();
-              String[] parts = line.split(",");
-              if (parts.length == 4) {
-                  String customerName = parts[0];
-                  String[] date = parts[1].split("/");
-                  int month = Integer.parseInt(date[0]);
-                  int day = Integer.parseInt(date[1]);
-                  int eventHour = Integer.parseInt(parts[2]);
-                  waitingList.add(new Request(customerName, LocalDateTime.of(2023, month, day, eventHour, 0), eventHour));
-              }
-          }
-      } catch (IOException e) {
-          System.out.println("Could not read waiting list data from file: " + filename);
-      }
-      return waitingList;
-  }
+
+
+    private static Queue<Request> readWaitingListFile(String filename) {
+        Queue<Request> waitingList = new LinkedList<>();
+        try (Scanner scanner = new Scanner(new File(filename))) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                String[] parts = line.split(",");
+                if (parts.length == 4) {
+                    String customerName = parts[0];
+                    String[] date = parts[1].split("/");
+                    int month = Integer.parseInt(date[0]);
+                    int day = Integer.parseInt(date[1]);
+                    int eventHour = Integer.parseInt(parts[2]);
+
+                    // Use the current year for LocalDateTime
+                    int currentYear = LocalDateTime.now().getYear();
+                    LocalDateTime eventDateTime = LocalDateTime.of(currentYear, month, day, eventHour, 0);
+
+                    waitingList.add(new Request(customerName, eventDateTime, eventHour));
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Could not read waiting list data from file: " + filename);
+        }
+        return waitingList;
+    }
+
 
 
 
