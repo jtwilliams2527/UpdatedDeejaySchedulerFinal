@@ -137,12 +137,12 @@ public class DJScheduler {
 
       // Find the DJ with the least number of bookings who is available
       String chosenDj = null;
-      int minBookings = -1;
+      int minBookings = Integer.MAX_VALUE;
 
       for (Map.Entry<String, Integer> entry : djBookingCounts.entrySet()) {
           // Check if the DJ is available for the requested duration
           if (isDjAvailable(entry.getKey(), dateTime, eventDuration)) {
-              if (minBookings == -1 || entry.getValue() < minBookings) {
+              if (entry.getValue() < minBookings) {
                   chosenDj = entry.getKey();
                   minBookings = entry.getValue();
               }
@@ -151,7 +151,6 @@ public class DJScheduler {
 
       return chosenDj;
   }
-
 
 
 
@@ -352,7 +351,7 @@ public class DJScheduler {
         System.out.println("Bookings for Deejay " + deejay + ":");
         for (Booking booking : bookingsList) {
             if (booking.getDj().equals(deejay)) {
-                System.out.println(booking.toStringForFile());
+                System.out.println(booking);
             }
         }
     }
@@ -365,23 +364,27 @@ public class DJScheduler {
       System.out.println("Bookings for Date " + date + ":");
       for (Booking booking : bookingsList) {
           if (booking.getDateTime().format(formatter).equals(date)) {
-              System.out.println(booking.toStringForFile());
+              System.out.println(booking);
           }
       }
   }
 
 
-    private static ArrayList<String> readDataFile(String filename) {
-        ArrayList<String> djsList = new ArrayList<>();
-        try (Scanner scanner = new Scanner(new File(filename))) {
-            while (scanner.hasNextLine()) {
-                djsList.add(scanner.nextLine());
-            }
-        } catch (IOException e) {
-            System.out.println("Could not read DJ data from file: " + filename);
-        }
-        return djsList;
-    }
+  private static ArrayList<String> readDataFile(String filename) {
+      ArrayList<String> djsList = new ArrayList<>();
+      try (Scanner scanner = new Scanner(new File(filename))) {
+          while (scanner.hasNextLine()) {
+              String dj = scanner.nextLine().trim();  // Trim to remove leading/trailing spaces
+              if (!dj.isEmpty()) {
+                  djsList.add(dj);
+              }
+          }
+      } catch (IOException e) {
+          System.out.println("Could not read DJ data from file: " + filename);
+      }
+      return djsList;
+  }
+
   private static ArrayList<Booking> readBookingsFile(String filename) {
       ArrayList<Booking> bookingsList = new ArrayList<>();
       try (Scanner scanner = new Scanner(new File(filename))) {
