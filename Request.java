@@ -28,6 +28,6 @@ public class Request {
 
     public String toStringForFile() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy HH:mm");
-        return customerName + "," + dateTime.format(formatter);
+        return customerName + "," + dateTime.format(formatter) + "," + eventDuration + "hrs";
     }
 }

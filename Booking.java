@@ -36,6 +36,6 @@ public class Booking {
 
     public String toStringForFile() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy HH:mm");
-        return customerName + "," + dj + "," + dateTime.format(formatter);
+        return customerName + "," + dj + "," + dateTime.format(formatter) + "," + eventDuration + "hrs";
     }
 }
