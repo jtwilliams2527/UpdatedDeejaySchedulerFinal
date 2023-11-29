@@ -6,6 +6,7 @@ public class Booking {
     private LocalDateTime dateTime;
     private String customerName;
     private int eventDuration;
+  
 
 
     // Constructor
