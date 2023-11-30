@@ -1,3 +1,4 @@
+
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -130,16 +131,11 @@ public class DJScheduler {
           }
       }
 
-      // Reset the counts for all DJs to 0
-      for (String dj : djsList) {
-          djBookingCounts.put(dj, 0);
-      }
-
       // Count the number of overlapping bookings for each DJ
       for (Booking booking : bookingsList) {
           LocalDateTime bookingEnd = booking.getDateTime().plusHours(booking.getEventDuration());
           if (booking.getDateTime().isBefore(dateTime.plusHours(eventDuration)) &&
-                  bookingEnd.isAfter(dateTime)) {
+              bookingEnd.isAfter(dateTime)) {
               String dj = booking.getDj();
               djBookingCounts.put(dj, djBookingCounts.get(dj) + 1);
           }
@@ -164,46 +160,67 @@ public class DJScheduler {
 
 
 
+  private static String chooseAvailableDj(LocalDateTime dateTime, int eventDuration, Scanner scanner) {
+      // Count the number of bookings for each DJ
+      updateBookingCounts(dateTime, eventDuration);
+
+      // Find the DJ with the least number of bookings who is available
+      String chosenDj = null;
+      int minBookings = Integer.MAX_VALUE;
+
+      for (Map.Entry<String, Integer> entry : djBookingCounts.entrySet()) {
+          String dj = entry.getKey();
+
+          // Check if the DJ is available for the requested duration
+          if (isDjAvailable(dj, dateTime, eventDuration)) {
+              System.out.println("DJ " + dj + " is available for the requested duration.");
+              if (entry.getValue() < minBookings) {
+                  chosenDj = dj;
+                  minBookings = entry.getValue();
+              }
+          } else {
+              System.out.println("DJ " + dj + " is NOT available for the requested duration.");
+          }
+      }
+
+      // Print the chosen DJ and min bookings
+      System.out.println("Chosen DJ: " + chosenDj + ", Min Bookings: " + minBookings);
+
+      if (chosenDj != null) {
+          return chosenDj;
+      } else {
+          // If no available DJ is found, add to the waiting list
+          System.out.println("No available DJs for the specified duration. Adding to the waiting list.");
+          saveWaitingListFile(WAITING_LIST_FILE, waitingList);
+          return null;
+      }
+  }
 
 
 
 
 
-  // private static String chooseAvailableDj(LocalDateTime dateTime, int eventDuration, Scanner scanner) {
-  //     // Count the number of bookings for each DJ
-  //     updateBookingCounts(dateTime, eventDuration);
 
-  //     // Find the DJ with the least number of bookings who is available
-  //     String chosenDj = null;
-  //     int minBookings = Integer.MAX_VALUE;
 
-  //     for (Map.Entry<String, Integer> entry : djBookingCounts.entrySet()) {
-  //         String dj = entry.getKey();
 
-  //         // Check if the DJ is available for the requested duration
-  //         if (isDjAvailable(dj, dateTime, eventDuration)) {
-  //             System.out.println("DJ " + dj + " is available for the requested duration.");
-  //             if (entry.getValue() < minBookings) {
-  //                 chosenDj = dj;
-  //                 minBookings = entry.getValue();
-  //             }
-  //         } else {
-  //             System.out.println("DJ " + dj + " is NOT available for the requested duration.");
-  //         }
-  //     }
 
-  //     // Print the chosen DJ and min bookings
-  //     System.out.println("Chosen DJ: " + chosenDj + ", Min Bookings: " + minBookings);
 
-  //     if (chosenDj != null) {
-  //         return chosenDj;
-  //     } else {
-  //         // If no available DJ is found, add to the waiting list
-  //         System.out.println("No available DJs for the specified duration. Adding to the waiting list.");
-  //         saveWaitingListFile(WAITING_LIST_FILE, waitingList);
-  //         return null;
-  //     }
-  // }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   private static void fulfillCancelledBookingsRequest(ArrayList<Booking> cancelledBookings, int eventDuration) {
       for (Booking booking : cancelledBookings) {
@@ -242,19 +259,16 @@ public class DJScheduler {
       if (!waitingList.isEmpty()) {
           List<Request> tempWaitingList = new ArrayList<>();
 
+          // Process waiting list requests and avoid duplicates
           while (!waitingList.isEmpty()) {
               Request waitingBooking = waitingList.poll();
 
-              // Check if the new DJ is available for the given date and time
-              boolean isAvailable = isDjAvailable(dj, waitingBooking.getDateTime(), eventDuration);
+              // Check if the selected DJ is available for the given date and time
+              String chosenDj = chooseAvailableDj(waitingBooking.getDateTime(), waitingBooking.getEventDuration(), scanner);
 
-              if (isAvailable) {
-                  bookingsList.add(new Booking(dj, waitingBooking.getDateTime(), waitingBooking.getCustomerName(), eventDuration));
-
-                  // Increment the booking count for the booked DJ in the map
-                  djBookingCounts.put(dj, djBookingCounts.get(dj) + 1);
-
-                  System.out.println("Booking successful for DJ " + dj + " from the waiting list.");
+              if (chosenDj != null) {
+                  bookingsList.add(new Booking(chosenDj, waitingBooking.getDateTime(), waitingBooking.getCustomerName(), eventDuration));
+                  System.out.println("Booking successful for DJ " + chosenDj + " from the waiting list.");
               } else {
                   // No available DJs for the waiting list request.
                   // Add back to the temporary list to avoid duplicates.
@@ -262,21 +276,13 @@ public class DJScheduler {
               }
           }
 
-          // Update booking counts after processing the waiting list
-          updateBookingCounts(LocalDateTime.now(), 0);
-
           // Add back the requests that were not fulfilled back to the waiting list
           waitingList.addAll(tempWaitingList);
 
-          // Save the waiting list to file after updating
-          saveWaitingListFile(WAITING_LIST_FILE, waitingList);
           saveBookingsFile(BOOKING_FILE, bookingsList);
+          saveWaitingListFile(WAITING_LIST_FILE, waitingList);
       }
   }
-
-
-
-
 
 
 
@@ -349,132 +355,34 @@ public class DJScheduler {
 
 
     // if multiple bookings cancelled, they are added to bottom, and moved to top by rotation
-    private static ArrayList<Request> rotateWaitingList(int numOfRequestRemoved){ // turns waitlist into list that can be rotated
-        java.util.List<String> myList = new ArrayList(waitingList);
-        java.util.Collections.rotate(myList, numOfRequestRemoved); // rotates things from bottom to top
-        return (ArrayList<Request>) new ArrayList(myList);
+    // private static ArrayList<Request> rotateWaitingList(int numOfRequestRemoved){ // turns waitlist into list that can be rotated
+    //     java.util.List<String> myList = new ArrayList(waitingList);
+    //     java.util.Collections.rotate(myList, numOfRequestRemoved); // rotates things from bottom to top
+    //     return (ArrayList<Request>) new ArrayList(myList);
+    // }
+
+  /// rewrite of this rotate waiting list function 
+  private static ArrayList<Request> rotateWaitingList(int numOfRequestRemoved) {
+      // Assuming waitingList is a List<Request>
+      List<Request> myList = new ArrayList<>(waitingList);
+      Collections.rotate(myList, numOfRequestRemoved);
+      return new ArrayList<>(myList);
+  }
+
+
+
+
+    private static void signupDeejay(Scanner scanner, int eventDuration) {
+        System.out.print("Enter the name of the new deejay: ");
+        String newDj = scanner.nextLine();
+        djsList.add(newDj);
+        saveDataFile(DJ_FILE, djsList);
+        System.out.println("New deejay " + newDj + " has signed up.");
+
+        // Try to fulfill waiting list requests with the new deejay
+        fulfillWaitingListRequest(newDj, eventDuration);
+
     }
-
-
-
-
-
-  
-
-  private static void signupDeejay(Scanner scanner, int eventDuration) {
-      System.out.print("Enter the name of the new deejay: ");
-      String newDj = scanner.nextLine();
-
-      // Add the new DJ to the list
-      djsList.add(newDj);
-      saveDataFile(DJ_FILE, djsList);
-      System.out.println("New deejay " + newDj + " has signed up.");
-
-      // Initialize the booking count for the new DJ
-      djBookingCounts.put(newDj, 0);
-
-      // Update the DJ booking counts after signing up
-      updateBookingCounts(LocalDateTime.now(), eventDuration); // Update counts immediately after signup
-
-      // Try to fulfill waiting list requests with the new deejay
-      fulfillWaitingListRequest(newDj, eventDuration);
-
-      System.out.println("DJ Booking Counts: " + djBookingCounts);
-  }
-
-  // private static void updateBookingCounts(LocalDateTime dateTime, int eventDuration) {
-  //     // Initialize the counts for all DJs to 0 if it's the first time
-  //     if (djBookingCounts.isEmpty()) {
-  //         for (String dj : djsList) {
-  //             djBookingCounts.put(dj, 0);
-  //         }
-  //     }
-
-  //     // Reset the counts for all DJs to 0
-  //     for (String dj : djsList) {
-  //         djBookingCounts.put(dj, 0);
-  //     }
-
-  //     // Count the number of overlapping bookings for each DJ
-  //     for (Booking booking : bookingsList) {
-  //         LocalDateTime bookingEnd = booking.getDateTime().plusHours(booking.getEventDuration());
-  //         if (booking.getDateTime().isBefore(dateTime.plusHours(eventDuration)) &&
-  //                 bookingEnd.isAfter(dateTime)) {
-  //             String dj = booking.getDj();
-  //             djBookingCounts.put(dj, djBookingCounts.get(dj) + 1);
-  //         }
-  //     }
-
-  //     System.out.println("DJ Booking Counts: " + djBookingCounts);
-  // }
-
-
-  private static void updateBookingCounts() {
-      // Initialize the counts for all DJs to 0
-      for (String dj : djsList) {
-          djBookingCounts.put(dj, 0);
-      }
-
-      // Count the number of bookings for each DJ
-      for (Booking booking : bookingsList) {
-          String dj = booking.getDj();
-          djBookingCounts.put(dj, djBookingCounts.get(dj) + 1);
-      }
-
-      System.out.println("DJ Booking Counts: " + djBookingCounts);
-  }
-
-
-
-
-
-
-  
-
-  private static String chooseAvailableDj(LocalDateTime dateTime, int eventDuration, Scanner scanner) {
-      // Count the number of bookings for each DJ
-      updateBookingCounts(dateTime, eventDuration);
-
-      // Find the DJ with the least number of bookings who is available
-      String chosenDj = null;
-      int minBookings = Integer.MAX_VALUE;
-
-      for (Map.Entry<String, Integer> entry : djBookingCounts.entrySet()) {
-          String dj = entry.getKey();
-
-          // Check if the DJ is available for the requested duration
-          if (isDjAvailable(dj, dateTime, eventDuration)) {
-              System.out.println("DJ " + dj + " is available for the requested duration.");
-
-              // Compare the number of bookings and update the chosen DJ if needed
-              if (entry.getValue() < minBookings) {
-                  chosenDj = dj;
-                  minBookings = entry.getValue();
-              }
-          } else {
-              System.out.println("DJ " + dj + " is NOT available for the requested duration.");
-          }
-      }
-
-      // Print the chosen DJ and min bookings
-      System.out.println("Chosen DJ: " + chosenDj + ", Min Bookings: " + minBookings);
-
-      if (chosenDj != null) {
-          return chosenDj;
-      } else {
-          // If no available DJ is found, add to the waiting list
-          System.out.println("No available DJs for the specified duration. Adding to the waiting list.");
-          saveWaitingListFile(WAITING_LIST_FILE, waitingList);
-          return null;
-      }
-  }
-
-
-
-
-
-
-
 
     private static void dropoutDeejay(Scanner scanner) {
         System.out.print("Enter the name of the deejay who is dropping out: ");
