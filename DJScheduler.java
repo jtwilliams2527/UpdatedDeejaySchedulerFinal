@@ -372,37 +372,69 @@ public class DJScheduler {
 
 
 
-    private static void dropoutDeejay(Scanner scanner) {
-        System.out.print("Enter the name of the deejay who is dropping out: ");
-        String droppedDj = scanner.nextLine();
+    // private static void dropoutDeejay(Scanner scanner) {
+    //     System.out.print("Enter the name of the deejay who is dropping out: ");
+    //     String droppedDj = scanner.nextLine();
 
-        // Cancel all bookings for the dropped deejay
-        ArrayList<Booking> canceledBookings = new ArrayList<>();
-        for (Booking booking : bookingsList) {
-            if (booking.getDj().equals(droppedDj)) {
-                canceledBookings.add(booking);
-            }
-        }
+    //     // Cancel all bookings for the dropped deejay
+    //     ArrayList<Booking> canceledBookings = new ArrayList<>();
+    //     for (Booking booking : bookingsList) {
+    //         if (booking.getDj().equals(droppedDj)) {
+    //             canceledBookings.add(booking);
+    //         }
+    //     }
 
-        for (Booking canceledBooking : canceledBookings) {
-            bookingsList.remove(canceledBooking);
-        }
-        saveBookingsFile(BOOKING_FILE,bookingsList);
+    //     for (Booking canceledBooking : canceledBookings) {
+    //         bookingsList.remove(canceledBooking);
+    //     }
+    //     saveBookingsFile(BOOKING_FILE,bookingsList);
 
-        // Remove the dropped deejay from the list of deejays
-        djsList.remove(droppedDj);
-        saveDataFile(DJ_FILE, djsList);
+    //     // Remove the dropped deejay from the list of deejays
+    //     djsList.remove(droppedDj);
+    //     saveDataFile(DJ_FILE, djsList);
 
-        if (!canceledBookings.isEmpty()) {
-            System.out.println("Bookings for deejay " + droppedDj + " are canceled.");
-            // Try to fulfill waiting list requests
-            //            fulfillWaitingListRequestFront();
-            fulfillCancelledBookingsRequest(canceledBookings, eventDuration);
-        } else {
-            System.out.println("No bookings found for deejay " + droppedDj + ".");
-        }
+    //     if (!canceledBookings.isEmpty()) {
+    //         System.out.println("Bookings for deejay " + droppedDj + " are canceled.");
+    //         // Try to fulfill waiting list requests
+    //         //            fulfillWaitingListRequestFront();
+    //         fulfillCancelledBookingsRequest(canceledBookings, eventDuration);
+    //     } else {
+    //         System.out.println("No bookings found for deejay " + droppedDj + ".");
+    //     }
 
-    }
+    // }
+
+  private static void dropoutDeejay(Scanner scanner) {
+      System.out.print("Enter the name of the deejay who is dropping out: ");
+      String droppedDj = scanner.nextLine();
+
+      // Cancel all bookings for the dropped deejay
+      ArrayList<Booking> canceledBookings = new ArrayList<>();
+
+      // Using an iterator to avoid ConcurrentModificationException
+      Iterator<Booking> iterator = bookingsList.iterator();
+      while (iterator.hasNext()) {
+          Booking booking = iterator.next();
+          if (booking.getDj().equals(droppedDj)) {
+              canceledBookings.add(booking);
+              iterator.remove(); // Remove using iterator
+          }
+      }
+
+      saveBookingsFile(BOOKING_FILE, bookingsList);
+
+      // Remove the dropped deejay from the list of deejays
+      djsList.remove(droppedDj);
+      saveDataFile(DJ_FILE, djsList);
+
+      if (!canceledBookings.isEmpty()) {
+          System.out.println("Bookings for deejay " + droppedDj + " are canceled.");
+          fulfillCancelledBookingsRequest(canceledBookings, eventDuration);
+      } else {
+          System.out.println("No bookings found for deejay " + droppedDj + ".");
+      }
+  }
+
 
     private static void showDeejayStatus(Scanner scanner) {
         System.out.print("Enter the name of the deejay: ");
