@@ -80,6 +80,10 @@ public class DJScheduler {
                     System.out.println("Invalid option. Please select an option from 1 to 7.");
             }
         }
+        saveBookingsFile(BOOKING_FILE, bookingsList);
+        saveWaitingListFile(WAITING_LIST_FILE, waitingList);
+
+
     }
 
   private static void scheduleDeejay(Scanner scanner) {
