@@ -5,7 +5,6 @@ import java.util.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.io.FileWriter;
 
 @SuppressWarnings("unchecked") 
 public class DJScheduler {
@@ -31,7 +30,7 @@ public class DJScheduler {
         waitingList = readWaitingListFile(WAITING_LIST_FILE);
         djBookingCounts = new HashMap<>();
         updateBookingCounts(LocalDateTime.now(), 0);
-  
+
 
 
 
@@ -77,7 +76,6 @@ public class DJScheduler {
                     saveWaitingListFile(WAITING_LIST_FILE, waitingList);
                     running = false;
                     break;
-
                 default:
                     System.out.println("Invalid option. Please select an option from 1 to 7.");
             }
@@ -102,25 +100,21 @@ public class DJScheduler {
       String dj = chooseAvailableDj(dateTime, eventDurationInput, scanner);
       if (dj != null) {
           bookingsList.add(new Booking(dj, dateTime, customerName, eventDurationInput));
-  
+
           // Increment the booking count for the booked DJ in the map
           djBookingCounts.put(dj, djBookingCounts.get(dj) + 1);
-  
+
           System.out.println("Booking successful for " + dj);
           fulfillWaitingListRequest(dj, eventDurationInput);
-  
-          // Save the updated bookingsList and waitingList
           saveBookingsFile(BOOKING_FILE, bookingsList);
-          saveWaitingListFile(WAITING_LIST_FILE, waitingList);
-  
+
           updateBookingCounts(dateTime, eventDurationInput);
+
       } else {
           System.out.println("No available DJs for the specified duration. Adding to the waiting list.");
-  
+
           // Instead of adding to the bookingsList directly, add to waitingList
           waitingList.offer(new Request(customerName, dateTime, eventDurationInput));
-  
-          // Save the updated waitingList
           saveWaitingListFile(WAITING_LIST_FILE, waitingList);
       }
   }
@@ -225,9 +219,6 @@ public class DJScheduler {
           }
       }
 
-      waitingList = readWaitingListFile(WAITING_LIST_FILE);
-  
-      // Rotate waiting list and update bookings
       waitingList = new LinkedList<>(rotateWaitingList(cancelledBookings.size()));
       saveBookingsFile(BOOKING_FILE, bookingsList);
       saveWaitingListFile(WAITING_LIST_FILE, waitingList);
@@ -259,8 +250,6 @@ public class DJScheduler {
                   // Add back to the temporary list to avoid duplicates.
                   tempWaitingList.add(waitingBooking);
               }
-              saveWaitingListFile(WAITING_LIST_FILE, waitingList);
-              saveBookingsFile(BOOKING_FILE, bookingsList);
           }
 
           // Update booking counts after processing the waiting list
@@ -350,11 +339,13 @@ public class DJScheduler {
 
 
     // if multiple bookings cancelled, they are added to bottom, and moved to top by rotation
-    private static ArrayList<Request> rotateWaitingList(int numOfRequestRemoved){ // turns waitlist into list that can be rotated
-        java.util.List<String> myList = new ArrayList(waitingList);
-        java.util.Collections.rotate(myList, numOfRequestRemoved); // rotates things from bottom to top
-        return (ArrayList<Request>) new ArrayList(myList);
-    }
+  // if multiple bookings cancelled, they are added to bottom, and moved to top by rotation
+  private static ArrayList<Request> rotateWaitingList(int numOfRequestRemoved) {
+      List<Request> myList = new ArrayList<>(waitingList);
+      Collections.rotate(myList, numOfRequestRemoved); // rotates things from bottom to top
+      return new ArrayList<>(myList);
+  }
+
 
 
 
@@ -362,9 +353,6 @@ public class DJScheduler {
   private static void signupDeejay(Scanner scanner, int eventDuration) {
       System.out.print("Enter the name of the new deejay: ");
       String newDj = scanner.nextLine();
-
-      // Load existing waiting list data
-      waitingList = readWaitingListFile(WAITING_LIST_FILE);
 
       // Add the new DJ to the list
       djsList.add(newDj);
@@ -376,53 +364,41 @@ public class DJScheduler {
 
       // Try to fulfill waiting list requests with the new deejay
       fulfillWaitingListRequest(newDj, eventDuration);
-
-      // Save the updated waitingList
-      saveWaitingListFile(WAITING_LIST_FILE, waitingList);
-      saveBookingsFile(BOOKING_FILE, bookingsList);
   }
 
 
 
+    private static void dropoutDeejay(Scanner scanner) {
+        System.out.print("Enter the name of the deejay who is dropping out: ");
+        String droppedDj = scanner.nextLine();
 
-  private static void dropoutDeejay(Scanner scanner) {
-      System.out.print("Enter the name of the deejay who is dropping out: ");
-      String droppedDj = scanner.nextLine();
+        // Cancel all bookings for the dropped deejay
+        ArrayList<Booking> canceledBookings = new ArrayList<>();
+        for (Booking booking : bookingsList) {
+            if (booking.getDj().equals(droppedDj)) {
+                canceledBookings.add(booking);
+            }
+        }
 
-      // Load existing waiting list data
-      waitingList = readWaitingListFile(WAITING_LIST_FILE);
+        for (Booking canceledBooking : canceledBookings) {
+            bookingsList.remove(canceledBooking);
+        }
+        saveBookingsFile(BOOKING_FILE,bookingsList);
 
-      // Cancel all bookings for the dropped deejay
-      ArrayList<Booking> canceledBookings = new ArrayList<>();
-      for (Booking booking : bookingsList) {
-          if (booking.getDj().equals(droppedDj)) {
-              canceledBookings.add(booking);
-          }
-      }
+        // Remove the dropped deejay from the list of deejays
+        djsList.remove(droppedDj);
+        saveDataFile(DJ_FILE, djsList);
 
-      for (Booking canceledBooking : canceledBookings) {
-          bookingsList.remove(canceledBooking);
-      }
+        if (!canceledBookings.isEmpty()) {
+            System.out.println("Bookings for deejay " + droppedDj + " are canceled.");
+            // Try to fulfill waiting list requests
+            //            fulfillWaitingListRequestFront();
+            fulfillCancelledBookingsRequest(canceledBookings, eventDuration);
+        } else {
+            System.out.println("No bookings found for deejay " + droppedDj + ".");
+        }
 
-      // Remove the dropped deejay from the list of deejays
-      djsList.remove(droppedDj);
-      saveDataFile(DJ_FILE, djsList);
-
-      if (!canceledBookings.isEmpty()) {
-          System.out.println("Bookings for deejay " + droppedDj + " are canceled.");
-
-          // Try to fulfill waiting list requests
-          fulfillCancelledBookingsRequest(canceledBookings, eventDuration);
-
-      } else {
-          System.out.println("No bookings found for deejay " + droppedDj + ".");
-      }
-
-      // Save the updated waitingList
-      saveWaitingListFile(WAITING_LIST_FILE, waitingList);
-      saveBookingsFile(BOOKING_FILE, bookingsList);
-  }
-
+    }
 
     private static void showDeejayStatus(Scanner scanner) {
         System.out.print("Enter the name of the deejay: ");
@@ -539,16 +515,13 @@ public class DJScheduler {
   }
 
 
-
-
-  private static void saveWaitingListFile(String filename, Queue<Request> waitingList) {
-      try (PrintWriter writer = new PrintWriter(filename)) {
-          for (Request request : waitingList) {
-              writer.println(request.toStringForFile());
-          }
-      } catch (IOException e) {
-          System.out.println("Could not write waiting list data to file: " + filename);
-      }
-  }
-
+    private static void saveWaitingListFile(String filename, Queue<Request> waitingList) {
+        try (PrintWriter writer = new PrintWriter(filename)) {
+            for (Request request : waitingList) {
+                writer.println(request.toStringForFile());
+            }
+        } catch (IOException e) {
+            System.out.println("Could not write waiting list data to file: " + filename);
+        }
+    }
 }
