@@ -417,6 +417,7 @@ public class DJScheduler {
           Booking booking = iterator.next();
           if (booking.getDj().equals(droppedDj)) {
               canceledBookings.add(booking);
+              System.out.println(canceledBookings);
               iterator.remove(); // Remove using iterator
           }
       }
